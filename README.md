@@ -95,10 +95,14 @@ docker compose restart
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install "mcp[cli]" httpx beautifulsoup4
+pip install -e ".[dev]"
 ```
 
 On Windows, activate with `.venv\Scripts\activate` instead.
+
+If you only need to run the server and don't need the MCP Inspector, `pip install -e .` is enough.
+
+`pyproject.toml` pins the MCP SDK to the **1.x** line (`mcp>=1.30,<2`), which is the version that provides the FastMCP 1.x API used by `server.py`. The `dev` extra adds the `mcp` CLI for `mcp dev`. Do not upgrade to `mcp` 2.x without updating the code.
 
 ### 6. Test the server (optional)
 
@@ -133,21 +137,29 @@ claude mcp add aether -- /absolute/path/to/aether/.venv/bin/python /absolute/pat
 
 **OpenCode** (`opencode.json`):
 
+
 ```json
 {
   "mcp": {
-    "aether": {
-      "type": "local",
-      "command": [
-        "/absolute/path/to/aether/.venv/bin/python",
-        "/absolute/path/to/aether/server.py"
-      ],
-      "enabled": true
+    "servers": {
+      "local-web-search": {
+        "type": "local",
+        "command": [
+          "/absolute/path/to/aether/.venv/bin/python",
+          "/absolute/path/to/aether/server.py"
+        ],
+        "environment": {
+          "SEARXNG_URL": "http://127.0.0.1:8080"
+        },
+        "codemode": false // codemode not needed for this mcp tool
+      }
     }
   }
 }
 ```
 
+```
+```
 Restart your client after saving the config.
 
 ## Usage
@@ -213,13 +225,16 @@ If SearXNG runs elsewhere, pass `SEARXNG_URL` through your client's MCP config, 
 }
 ```
 
-Tunable limits live at the top of `server.py` (`TIMEOUT`, `MAX_PAGE_BYTES`, `MAX_TEXT_CHARS`).
+Tunable limits live at the top of `server.py` (`TIMEOUT`, `MAX_PAGE_BYTES`, `MAX_TEXT_CHARS`, `MAX_CONNECT_ADDRESSES`).
 
 ## Security notes
 
 - SearXNG is bound to `127.0.0.1` only and is not exposed to your network.
 - `.env` is git-ignored; only `.env.example` is committed.
-- `fetch_page` resolves the hostname and rejects any address that is not globally routable, preventing access to local services and cloud metadata endpoints. It does not follow redirects, so a public URL cannot bounce to a private one.
+- `fetch_page` resolves the hostname once, rejects every non-public address, and then connects to that validated IP while preserving the original `Host` header and TLS SNI. This prevents DNS rebinding between the check and the request.
+- IPv6 addresses must be in global unicast space (`2000::/3`), which also blocks transition ranges such as NAT64 that embed an IPv4 address.
+- Redirects are not followed, so a public URL cannot bounce to a private one.
+- HTTP proxy environment variables are ignored (`trust_env=False`), so searches and fetches do not silently leave through a configured proxy.
 - Fetched page text is untrusted input and is returned with an explicit warning. Do not treat it as agent instructions.
 
 ## Stopping and cleaning up
@@ -244,6 +259,7 @@ docker compose down -v    # also remove Docker volumes
 ```
 .
 ├── docker-compose.yml     # SearXNG service definition
+├── pyproject.toml         # Project metadata and deps (MCP pinned to 1.x)
 ├── server.py              # MCP server with web_search and fetch_page
 ├── searxng/
 │   └── settings.yml       # SearXNG config (enables JSON output)
