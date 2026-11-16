@@ -33,7 +33,7 @@ MCP client  ──stdio──▶  server.py (Aether)  ──HTTP──▶  SearX
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) with the Docker Compose plugin
-- Python **3.10+**
+- Python **3.11+**
 - `git`
 - An MCP-compatible client (Claude Desktop, Claude Code, OpenCode, etc.)
 
@@ -95,21 +95,25 @@ docker compose restart
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e .
 ```
 
 On Windows, activate with `.venv\Scripts\activate` instead.
 
-If you only need to run the server and don't need the MCP Inspector, `pip install -e .` is enough.
-
-`pyproject.toml` pins the MCP SDK to the **1.x** line (`mcp>=1.30,<2`), which is the version that provides the FastMCP 1.x API used by `server.py`. The `dev` extra adds the `mcp` CLI for `mcp dev`. Do not upgrade to `mcp` 2.x without updating the code.
+`pyproject.toml` pins the standalone FastMCP framework (`fastmcp>=4,<5`). FastMCP 4 ships its own `fastmcp` CLI and brings in the MCP Python SDK 2.x, so no separate SDK pin is needed. This is also what provides `fastmcp dev` for the MCP Inspector in the next step.
 
 ### 6. Test the server (optional)
 
 `server.py` uses stdio, so running it directly just waits for an MCP client. To poke at the tools interactively, use the MCP Inspector:
 
 ```bash
-mcp dev server.py
+fastmcp dev inspector server.py
+```
+
+You can also check that both tools are registered without connecting a client:
+
+```bash
+fastmcp inspect server.py
 ```
 
 ### 7. Connect your MCP client
@@ -259,7 +263,7 @@ docker compose down -v    # also remove Docker volumes
 ```
 .
 ├── docker-compose.yml     # SearXNG service definition
-├── pyproject.toml         # Project metadata and deps (MCP pinned to 1.x)
+├── pyproject.toml         # Project metadata and deps (FastMCP 4.x)
 ├── server.py              # MCP server with web_search and fetch_page
 ├── searxng/
 │   └── settings.yml       # SearXNG config (enables JSON output)

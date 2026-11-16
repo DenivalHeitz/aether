@@ -8,7 +8,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from bs4 import BeautifulSoup
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 mcp = FastMCP("local-web-search")
 
